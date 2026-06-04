@@ -86,7 +86,11 @@ env.BIFROST_POSTGRES_PASSWORD
 {{- .Values.postgresql.external.password -}}
 {{- end -}}
 {{- else -}}
+{{- if .Values.postgresql.auth.existingSecret -}}
+env.BIFROST_POSTGRES_PASSWORD
+{{- else -}}
 {{- .Values.postgresql.auth.password -}}
+{{- end -}}
 {{- end -}}
 {{- end -}}
 
@@ -302,6 +306,9 @@ false
 {{- end }}
 {{- if hasKey .Values.bifrost.client "mcpDisableAutoToolInject" }}
 {{- $_ := set $client "mcp_disable_auto_tool_inject" .Values.bifrost.client.mcpDisableAutoToolInject }}
+{{- end }}
+{{- if hasKey .Values.bifrost.client "mcpEnableTempTokenAuth" }}
+{{- $_ := set $client "mcp_enable_temp_token_auth" .Values.bifrost.client.mcpEnableTempTokenAuth }}
 {{- end }}
 {{- if .Values.bifrost.client.routingChainMaxDepth }}
 {{- $_ := set $client "routing_chain_max_depth" .Values.bifrost.client.routingChainMaxDepth }}
@@ -945,6 +952,19 @@ false
 {{- end }}
 {{- if hasKey $client "allowOnAllVirtualKeys" }}
 {{- $_ := set $cc "allow_on_all_virtual_keys" $client.allowOnAllVirtualKeys }}
+{{- end }}
+{{- /* Map tlsConfig -> tls_config (only for http/sse/websocket connection types) */ -}}
+{{- if and $client.tlsConfig (or (eq $client.connectionType "http") (eq $client.connectionType "sse") (eq $client.connectionType "websocket")) }}
+{{- $tls := dict }}
+{{- if hasKey $client.tlsConfig "insecureSkipVerify" }}
+{{- $_ := set $tls "insecure_skip_verify" $client.tlsConfig.insecureSkipVerify }}
+{{- end }}
+{{- if $client.tlsConfig.caCertPem }}
+{{- $_ := set $tls "ca_cert_pem" $client.tlsConfig.caCertPem }}
+{{- end }}
+{{- if $tls }}
+{{- $_ := set $cc "tls_config" $tls }}
+{{- end }}
 {{- end }}
 {{- /* Override connection_string with env var placeholder when secretRef is set */ -}}
 {{- if and $client.secretRef $client.secretRef.name }}
